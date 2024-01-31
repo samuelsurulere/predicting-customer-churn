@@ -1,5 +1,5 @@
 
-# Loading necessary packages
+#################### Loading necessary packages and data ###################
 
 # install.packages('caret')
 # install.packages("caret", dependencies=c("Depends", "Suggests"))
@@ -17,20 +17,28 @@ str(data)
 summary(data)
 glimpse(data)
 
+
+########################### Data Preprocessing ############################
+
 # Dropping irrelevant columns that makes no sense
+# The Age column was dropped because, the values were categorical and not 
+# continuous
 data$FN <- NULL
 data$FP <- NULL
 data$Age <- NULL
 
-# Rename the column names
+
+# Renaming the column names
 colnames(data) <- c("call.failure","complains","subscription.len",
                     "charge.cost","usage.secs","freq.of.use",
                     "freq.of.sms","numbers.dialed","age.group",
                     "tariff.plan","status","customer.value","churn")
 
+# Checking for missing values in the dataset
 colSums(is.na(data))
 
 head(data)
+
 
 # Converting categorical features disguised as numerical features
 # to categorical features
@@ -42,19 +50,22 @@ head(data)
 # data$status <- as.factor(data$status)
 data$churn <- factor(data$churn)
 
-
+# Checking the defined levels of Churn column
 levels(data$churn)
 
-
+# Reassigning readable description to the Churn levels
 data$churn <- factor(data$churn, 
                      levels=c(0, 1), 
                      labels=c("active", "non.active"))
 
 glimpse(data)
 
-# list types for each attribute
+# List the types for each feature
 sapply(data, class)
 
+
+
+######################### Some EDA visualizations ##########################
 
 # Bar charts for categorical features
 bar1 <- ggplot(data=data) + geom_bar(aes(x=complains, fill=churn)) + 
@@ -113,7 +124,9 @@ data$freq.of.sms <- clipping(data$freq.of.sms)
 
 
 
-# Create a partitioned list of 80% of the rows in the original data
+########################### Modeling process ############################
+
+# Creating a partitioned list of 80% of the rows in the original data
 index <- createDataPartition(data$churn, p=0.80, list=FALSE)
 # 20% of the data assigned for testing and evaluating the models
 test_data <- data[-index,]
@@ -124,36 +137,38 @@ train_data <- data[index,]
 dim(train_data)
 dim(test_data)
 
-# Run algorithms using 10-fold cross validation
+# Running algorithms using 10-fold cross validation
 control <- trainControl(method="cv", search="grid", 
                         summaryFunction=twoClassSummary, 
                         classProbs=T)
+# Since the Churn feature is quite imbalanced, Accuracy will not be an 
+# appropriate measure of model performance
 metric <- "ROC"
 
 
-# Training on different models
+## Comparing training on different models
 # LDA
-set.seed(42)
+set.seed(42) # Setting seed for reproducibility
 fit.lda <- train(churn~., data=train_data, 
                  method="lda", metric=metric, 
                  trControl=control)
 # CART
-set.seed(42)
+set.seed(42) # Setting seed for reproducibility
 fit.cart <- train(churn~., data=train_data, 
                   method="rpart", metric=metric, 
                   trControl=control)
 # kNN
-set.seed(42)
+set.seed(42) # Setting seed for reproducibility
 fit.knn <- train(churn~., data=train_data, 
                  method="knn", metric=metric, 
                  trControl=control)
 # SVM
-set.seed(42)
+set.seed(42) # Setting seed for reproducibility
 fit.svm <- train(churn~., data=train_data, 
                  method="svmRadial", metric=metric, 
                  trControl=control)
 # Random Forest
-set.seed(42)
+set.seed(42) # Setting seed for reproducibility
 fit.rf <- train(churn~., data=train_data, 
                 method="rf", metric=metric, 
                 trControl=control)
@@ -163,21 +178,29 @@ fit.rf <- train(churn~., data=train_data,
 summary(resamples(list(lda=fit.lda, cart=fit.cart, 
                        knn=fit.knn, svm=fit.svm, rf=fit.rf)))
 
+## The RandomForest model was the best performing model
 # Summarize the best performing model
 print(fit.rf)
+
+# Plot the model
 plot(fit.rf)
 
 # Estimate the efficiency of Random Forest model on the test data
 predictions <- predict(fit.rf, test_data)
 confusionMatrix(predictions, test_data$churn, positive="non.active")
 
-# variable importance evaluation for the Random Forest
+# Feature importance evaluation for the best performing model
 plot(varImp(fit.rf), top=10, 
      main='Variable Importance Plot')
 
+ggplot(varImp(fit.rf))
+
+
+
+####################### Optimizing model performance ########################
 
 ## Fine-tuning the model
-# Define the parameter grid
+# Defining the parameter grid
 control <- trainControl(method="LGOCV", 
                         summaryFunction=twoClassSummary,
                         classProbs=TRUE)
@@ -186,7 +209,7 @@ grid <- expand.grid(.mtry=c(1:sqrt(ncol(data))),
                     .splitrule=c("gini", "extratrees", "hellinger"),
                     .min.node.size=c(0.5, 1, 5, 10))
 
-# Perform grid search cross-validation
+# Performing grid search cross-validation
 optimizedModel <- train(churn~., 
                         data=train_data,
                         method="ranger", metric="ROC",
@@ -196,24 +219,45 @@ optimizedModel <- train(churn~.,
 print(optimizedModel)
 plot(optimizedModel)
 
+
+
+########################### Model validation ############################
+
 # Estimate the efficiency of Random Forest model on the test data
 predictions <- predict(optimizedModel, test_data)
 confusionMatrix(predictions, test_data$churn, positive="non.active")
 
-# Construct the ROC Curve and then calculate the Area Under the Curve (AUC)
-# for the initial simple RF (with 500 trees).
 
+## Construct the ROC Curve and then calculate the Area Under the Curve (AUC)
+# Calculating probabilities for test data
 RFprob <- predict(optimizedModel, test_data, type="prob")
+
+# Calculating the ROC Curve values
 ROC_RF <- roc(test_data$churn, RFprob[,"non.active"],
               levels=rev(levels(test_data$churn)))
 
-# display the ROC curve just constructed
-plot(ROC_RF, col="blue", lwd=3, 
-     main="ROC curve for optimized model")
+names(ROC_RF)
 
-# calculate the Area Under the ROC
-cat('Area under the ROC curve', 
-    round(auc(ROC_RF) * 100, 1), '\n')
+# Calculating the Area Under the ROC Curve
+auc <- auc(ROC_RF)
+ci <- ci.auc(ROC_RF)
+ci_lower <- round(ci[1] * 100, 1)
+ci_upper <- round(ci[3] * 100, 1)
+
+# Display the ROC curve
+ggroc(ROC_RF, col="blue", size=1.) +
+  ggtitle(paste0('Receiver Operating Characteristic Curve ')) + 
+  geom_segment(
+    aes(x=1, xend=0, y=0, yend=1), color="black", linetype="dashed"
+  ) + 
+  annotate("text", x=0.3, y=0.05, label=paste0(
+    "AUC = ", round(auc * 100, 1),"%", " (95% CI = ", ci_lower, "% - ", ci_upper, "%)"
+  ))
+
+
+# Printing the Area Under the ROC
+cat('Area under the ROC curve is', 
+    round(auc * 100, 1),"%", '\n')
 
 
 
