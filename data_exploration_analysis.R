@@ -26,9 +26,8 @@ data <- read.csv('Customer Churn.csv')
 
 # Viewing details of the dataset
 head(data)
-
 str(data)
-
+glimpse(data)
 
 ###################### Data cleaning and preprocessing ######################
 
@@ -74,13 +73,14 @@ colSums(is.na(data))
 #
 # Arising questions this analysis aims to seek answers to:
 #
-# 1. What could the main causes of customer churn?
-# 2. What is the longest time before customers churn?
+# 1. What could be the main causes of customer churn?
+# 2. What is the time interval for customers to churn?
 # 3. From insights generated from the EDA process, is it possible to discover 
 # how customers can be retained?
 # 4. What recommendations observed from the EDA process can avoid customer
 # churn?
-# 5. What other insights do interesting information from the data point towards?
+# 5. What other insights and interesting information can be observed from the 
+# data?
 #
 ##############################################################################
 ##############################################################################
@@ -292,18 +292,28 @@ violinPlot <- function(xcol, ycol){
 }
 
 violinPlot(xcol="ageGroup", ycol="usageSecs")
+# The width of the youngest age KDE means it contains more points around the 
+# median. While the rest of the categories have an elongated distribution.
 violinPlot(xcol="ageGroup", ycol="subscriptionLen")
+# The distribution of all the categories are quite similar in this plot.
 violinPlot(xcol="ageGroup", ycol="callFailure")
+# Quite similar distributions again excluding the older age which has contains
+# lesser points.
 violinPlot(xcol="chargeCost", ycol="callFailure")
+# Charge cost 0 to 5 are quite similar (elongated distributions). 6 to 10 have
+# more points around their median.
 violinPlot(xcol="churn", ycol="callFailure")
+# Similar distribution.
 violinPlot(xcol="churn", ycol="numbersDialed")
+# non-churn has an elongated distribution while churn has a wider spread 
+# (contains more points).
 
 
 ##############################################################################
 ##############################################################################
 # Answers to arising questions:
 #
-# 1. What could the main causes of customer churn? 
+# 1. What could be the main causes of customer churn?
 # Answer: The data points to two main features as the cause of customer churn:
 # - Complains (customers who have complains)
 # - Status (non-active customers have the highest churn)
@@ -312,7 +322,7 @@ violinPlot(xcol="churn", ycol="numbersDialed")
 # customers churned because they were no longer active on the platform. It was
 # also observed that customers on the "pay-as-you-go" tariff plan churned the
 # most compared to those on a contract.
-# 2. What is the longest time before customers churn?
+# 2. What is the time interval for customers to churn?
 # Answer: Customers begin to churn right from the time they subscribe to the 
 # network. The highest churn rate (almost 300 customers) was between 30 and 40.
 # 3. From insights generated from the EDA process, is it possible to discover 
@@ -324,10 +334,10 @@ violinPlot(xcol="churn", ycol="numbersDialed")
 # Answer: The data reveals that most of the customers that leave are subscribed
 # in the "pay-as-you-go" tariff plan. Probably make the contractual plan the 
 # gold standard. Customers on the contractual plan rarely churn.
-# 5. What other insights do interesting information from the data point towards?
+# 5. What other insights and interesting information can be observed from the 
+# data?
 # - Customers that churned have less than 100 frequency of use and around 600
 # seconds of use.
-# - Customers that churned have less than 100 frequency of use.
 # - Customers that have customer value of 5000 and above almost never churn.
 # - Customers that churn are the young age, middle age and old age. The oldest
 # and youngest age do not churn.

@@ -3,11 +3,14 @@
 
 # install.packages('caret')
 # install.packages("caret", dependencies=c("Depends", "Suggests"))
+# install.packages("cvms")
+# install.packages("yardstick")
 library(caret)
 library(dplyr)
 library(gridExtra)
 library(tidyverse)
 library(pROC)
+library(yardstick)
 
 # Reading the dataset into a data.frame
 data <- read.csv('Customer Churn.csv')
@@ -56,7 +59,7 @@ levels(data$churn)
 # Reassigning readable description to the Churn levels
 data$churn <- factor(data$churn, 
                      levels=c(0, 1), 
-                     labels=c("active", "non.active"))
+                     labels=c("non.churn", "churn"))
 
 glimpse(data)
 
@@ -187,14 +190,20 @@ plot(fit.rf)
 
 # Estimate the efficiency of Random Forest model on the test data
 predictions <- predict(fit.rf, test_data)
-confusionMatrix(predictions, test_data$churn, positive="non.active")
+conf_matrix <- confusionMatrix(predictions, test_data$churn, positive="churn")
+print(conf_matrix)
+
+
+# Attempting to plot the confusion matrix but failed
+autoplot(conf_mat(test_data$churn, .predictions), type="heatmap") +
+  scale_fill_gradient(low="pink", high="cyan")
+
 
 # Feature importance evaluation for the best performing model
 plot(varImp(fit.rf), top=10, 
      main='Variable Importance Plot')
 
 ggplot(varImp(fit.rf))
-
 
 
 ####################### Optimizing model performance ########################
@@ -225,7 +234,7 @@ plot(optimizedModel)
 
 # Estimate the efficiency of Random Forest model on the test data
 predictions <- predict(optimizedModel, test_data)
-confusionMatrix(predictions, test_data$churn, positive="non.active")
+confusionMatrix(predictions, test_data$churn, positive="churn")
 
 
 ## Construct the ROC Curve and then calculate the Area Under the Curve (AUC)
@@ -233,7 +242,7 @@ confusionMatrix(predictions, test_data$churn, positive="non.active")
 RFprob <- predict(optimizedModel, test_data, type="prob")
 
 # Calculating the ROC Curve values
-ROC_RF <- roc(test_data$churn, RFprob[,"non.active"],
+ROC_RF <- roc(test_data$churn, RFprob[,"churn"],
               levels=rev(levels(test_data$churn)))
 
 names(ROC_RF)
